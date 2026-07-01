@@ -2,21 +2,24 @@
 
 A direct indexing and tax-loss harvesting simulator built as a portfolio project for Pave Finance.
 
+[See the simulation results and analysis](RESULTS.md)
+
 ---
 
 ## What it does
 
 **Direct indexing** is owning individual stocks rather than a fund. Instead of buying an ETF that tracks the S&P 500, you buy a subset of the same underlying stocks in similar proportions. The key advantage: you can harvest tax losses on individual positions that a fund manager never could.
 
-**Tax-loss harvesting** means selling a position that's fallen in value, realizing the loss as a tax deduction, and buying a similar stock to keep your market exposure intact. The IRS wash-sale rule prevents you from immediately buying back the same ticker — so the replacement has to be something different but economically similar.
+**Tax-loss harvesting** means selling a position that's fallen in value, realizing the loss as a tax deduction, and buying a similar stock to keep your market exposure intact. The IRS wash-sale rule prevents you from immediately buying back the same ticker, so the replacement has to be something different but economically similar.
 
 This project models that entire workflow:
-- Downloads 2 years of daily prices (2023–2024) for a 100-stock universe spanning 11 GICS sectors
+- Downloads 2 years of daily prices (2023-2024) for a 100-stock universe spanning 11 GICS sectors
 - Builds a 30-stock basket that mirrors an equal-weight benchmark, allocated proportionally by sector
 - Steps through every trading day, harvesting any lot that's dropped more than 5% and swapping it for an eligible same-sector replacement
 - Computes three output metrics: total tax losses harvested, tracking error vs. the benchmark, and portfolio turnover
 
 ---
+
 ## Limitations
 
 This is a simulation with documented simplifications. Each one is a conscious tradeoff, not an oversight:
@@ -31,6 +34,7 @@ This is a simulation with documented simplifications. Each one is a conscious tr
 | SQLite, synchronous, single process | PostgreSQL, async request handling, authentication |
 
 ---
+
 ## Quick start
 
 ```bash
@@ -40,7 +44,7 @@ python -m venv .venv
 # source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
 
-# populate the database — pulls 2 years of prices from Yahoo Finance (~30s)
+# populate the database with 2 years of prices from Yahoo Finance (~30s)
 python scripts/run_pipeline.py
 
 # start the API
@@ -54,7 +58,7 @@ uvicorn pave.api.app:app --reload
 
 ## Demo (via Swagger UI)
 
-The API exposes three endpoints meant to be called in order. Open `/docs` and follow these steps:
+The API has three endpoints meant to be called in order. Open `/docs` and follow these steps:
 
 ### 1. `POST /portfolio/construct`
 Builds a basket from the stored universe. The defaults (30 stocks, no exclusions) work fine for a quick demo.
@@ -98,9 +102,9 @@ Returns the three outcome metrics for the completed run.
 }
 ```
 
-- **tax_alpha_pct** — harvested losses as a share of initial portfolio value (negative means deductible losses, so lower is better)
-- **tracking_error_annualized** — annualized standard deviation of daily return differences between the basket and the benchmark
-- **turnover** — total sell-side trading volume as a fraction of the initial portfolio
+- **tax_alpha_pct**: harvested losses as a share of initial portfolio value (negative means deductible losses, so lower is better)
+- **tracking_error_annualized**: annualized standard deviation of daily return differences between the basket and the benchmark
+- **turnover**: total sell-side trading volume as a fraction of the initial portfolio
 
 ---
 
@@ -109,7 +113,7 @@ Returns the three outcome metrics for the completed run.
 ```
 pave/
   config.py          100-stock universe definition, date range, DB path
-  pipeline/          price fetch (yfinance) → validation → SQLite persistence
+  pipeline/          price fetch (yfinance) -> validation -> SQLite persistence
   portfolio/         equal-weight benchmark, proportional basket construction
   harvesting/        in-memory lot tracking, wash-sale rules, simulation engine
   evaluation/        tax alpha, tracking error, turnover calculations
@@ -117,7 +121,7 @@ pave/
   db/schema.sql      4 tables: securities, prices, tax_lots, harvest_events
 scripts/
   run_pipeline.py    one-shot data ingestion script
-tests/               79 unit and integration tests — no network, no live DB required
+tests/               79 unit and integration tests, no network, no live DB required
 ```
 
 ---

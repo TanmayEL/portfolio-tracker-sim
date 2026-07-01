@@ -1,5 +1,5 @@
 """
-Persist securities metadata and price data to SQLite.
+Read and write securities metadata and price data to SQLite.
 
 Design notes:
 - We use sqlite3 directly (no ORM) — the schema is simple and explicit,
@@ -8,10 +8,13 @@ Design notes:
 - Prices are inserted with INSERT OR IGNORE so partial re-runs don't
   duplicate existing rows; if you need to update prices, delete and re-insert.
 - We commit in a single transaction per call for atomicity.
+- Read functions (load_*) are co-located here rather than in a separate
+  reader module — the DB interface is small enough to keep in one place.
 """
 
 import logging
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -81,3 +84,38 @@ def row_counts(conn: sqlite3.Connection) -> dict:
         "securities": conn.execute("SELECT COUNT(*) FROM securities").fetchone()[0],
         "prices": conn.execute("SELECT COUNT(*) FROM prices").fetchone()[0],
     }
+
+
+def load_securities(conn: sqlite3.Connection) -> pd.DataFrame:
+    """
+    Return all rows from the securities table as a DataFrame.
+    Columns: ticker (str), name (str), sector (str).
+    """
+    return pd.read_sql_query("SELECT ticker, name, sector FROM securities", conn)
+
+
+def load_prices(
+    conn: sqlite3.Connection,
+    tickers: list[str],
+    start: date,
+    end: date,
+) -> pd.DataFrame:
+    """
+    Return adj_close prices for the given tickers over [start, end] inclusive.
+    Columns: ticker (str), date (str, YYYY-MM-DD), adj_close (float).
+
+    Only adj_close is returned — all portfolio return calculations depend
+    solely on the adjusted closing price. Raw OHLCV columns are omitted
+    to keep the downstream interface minimal.
+    """
+    placeholders = ",".join("?" * len(tickers))
+    sql = f"""
+        SELECT ticker, date, adj_close
+        FROM prices
+        WHERE ticker IN ({placeholders})
+          AND date >= ?
+          AND date <= ?
+        ORDER BY ticker, date
+    """
+    params = tickers + [start.isoformat(), end.isoformat()]
+    return pd.read_sql_query(sql, conn, params=params)

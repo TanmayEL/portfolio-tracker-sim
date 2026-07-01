@@ -1,6 +1,6 @@
-# Pave TLH Simulator
+# Tax Loss Harvesting Simulator
 
-A direct indexing and tax-loss harvesting simulator built as a portfolio project for Pave Finance.
+A direct indexing and tax-loss harvesting simulator built as a portfolio project.
 
 [See the simulation results and analysis](RESULTS.md)
 

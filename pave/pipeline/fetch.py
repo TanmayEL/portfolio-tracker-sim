@@ -1,13 +1,6 @@
-"""
-Fetch historical daily price data from Yahoo Finance via yfinance.
-
-Design notes:
-- We download all tickers in a single batch call (faster than per-ticker loops).
-- yfinance returns a MultiIndex DataFrame; we reshape it into a flat
-  per-(ticker, date) structure that maps cleanly to our prices table.
-- adj_close comes from yfinance's "Close" column when auto_adjust=True,
-  which applies split and dividend adjustments automatically.
-"""
+# downloads historical prices from Yahoo Finance via yfinance
+# single batch call for all tickers, then reshapes the MultiIndex output into
+# a flat (ticker, date, ...) table. auto_adjust=True handles splits/dividends.
 
 import logging
 from datetime import date
@@ -23,15 +16,10 @@ def fetch_prices(
     start: date,
     end: date,
 ) -> pd.DataFrame:
-    """
-    Download adjusted daily OHLCV data for all tickers over [start, end].
+    """Download adjusted daily OHLCV for all tickers over [start, end].
 
-    Returns a DataFrame with columns:
-        ticker, date, open, high, low, close, volume, adj_close
-
-    yfinance note: when auto_adjust=True, all OHLC columns are already
-    split/dividend adjusted, so 'close' == 'adj_close'. We store both
-    for schema compatibility and clarity.
+    Returns columns: ticker, date, open, high, low, close, volume, adj_close.
+    With auto_adjust=True, close == adj_close — stored both for clarity.
     """
     logger.info(
         "Fetching %d tickers from %s to %s ...", len(tickers), start, end
@@ -41,9 +29,9 @@ def fetch_prices(
         tickers=tickers,
         start=start.isoformat(),
         end=end.isoformat(),
-        auto_adjust=True,   # adjusts all OHLC + volume for splits/dividends
+        auto_adjust=True,
         progress=False,
-        group_by="ticker",  # MultiIndex: (field, ticker) or (ticker, field)
+        group_by="ticker",
     )
 
     if raw.empty:
@@ -55,18 +43,13 @@ def fetch_prices(
 
 
 def _reshape(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
-    """
-    Flatten the MultiIndex DataFrame returned by yfinance into a tidy
-    (ticker, date, open, high, low, close, volume, adj_close) table.
+    """Flatten yfinance's MultiIndex output into a tidy per-(ticker, date) table.
 
-    yfinance column structure with group_by="ticker":
-      - Single ticker  → columns are field names directly
-      - Multiple tickers → MultiIndex columns: (ticker, field)
+    Single ticker → plain columns. Multiple tickers → MultiIndex (ticker, field).
     """
     records = []
 
     if len(tickers) == 1:
-        # Single-ticker path: columns are plain field names
         df = raw.copy()
         df["ticker"] = tickers[0]
         df = df.reset_index().rename(columns={"Date": "date", "index": "date"})
@@ -78,7 +61,6 @@ def _reshape(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
         df["adj_close"] = df["close"]
         return df[["ticker", "date", "open", "high", "low", "close", "volume", "adj_close"]]
 
-    # Multi-ticker path: top-level columns are tickers
     for ticker in tickers:
         if ticker not in raw.columns.get_level_values(0):
             logger.warning("Ticker %s missing from yfinance response — skipping.", ticker)

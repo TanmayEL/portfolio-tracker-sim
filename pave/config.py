@@ -1,32 +1,19 @@
-"""
-Central configuration: universe definition, date range, paths.
-
-The universe is ~100 large-cap US stocks spanning 11 GICS sectors.
-This is a simplified stand-in for a real index like the S&P 500.
-"""
+# universe definition, paths, date range
+# ~100 large-cap US stocks across 11 sectors — simplified stand-in for S&P 500
 
 from pathlib import Path
 from datetime import date
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DB_PATH = DATA_DIR / "pave.db"
 
 DATA_DIR.mkdir(exist_ok=True)
 
-# ---------------------------------------------------------------------------
-# Simulation date range  (~2 years of daily data)
-# ---------------------------------------------------------------------------
 START_DATE: date = date(2023, 1, 1)
 END_DATE: date = date(2024, 12, 31)
 
-# ---------------------------------------------------------------------------
-# Stock universe (~100 large-cap US stocks, 10 per sector)
-# Deliberately labelled as a simplified universe, not a real index replica.
-# ---------------------------------------------------------------------------
+# 10 stocks per sector, equal distribution across all 11 GICS sectors
 UNIVERSE: list[dict] = [
     # --- Information Technology ---
     {"ticker": "AAPL",  "name": "Apple Inc.",                    "sector": "Information Technology"},

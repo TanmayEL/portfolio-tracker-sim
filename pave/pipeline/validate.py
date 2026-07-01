@@ -1,22 +1,6 @@
-"""
-Validation and cleaning for raw price data.
-
-What we check and why:
-1. Required columns present — fail fast if fetch reshaping broke.
-2. No negative prices — a negative adj_close is physically impossible and
-   almost always a data error (bad corporate action adjustment).
-3. No zero adj_close — zero price implies the security was worthless/delisted;
-   we drop those rows rather than letting them corrupt return calculations.
-4. Missing date coverage — if a ticker is missing more than MAX_MISSING_PCT of
-   expected trading days, we warn loudly. We do NOT drop the ticker
-   automatically because missing data could be a yfinance gap vs. a real
-   delisting; the operator should decide.
-5. Duplicate (ticker, date) pairs — keep the first occurrence and warn.
-
-We do NOT attempt to fill forward missing prices here. That decision
-(fill vs. drop vs. flag) is left to the consumer of the data (e.g., the
-simulation engine), because the right choice depends on the use case.
-"""
+# cleans and validates raw price data before storing
+# hard failures raise, soft issues (sparse coverage, duplicates) just warn
+# we don't forward-fill missing prices here — that decision belongs to the consumer
 
 import logging
 from datetime import date, timedelta
@@ -27,17 +11,12 @@ logger = logging.getLogger(__name__)
 
 REQUIRED_COLUMNS = {"ticker", "date", "open", "high", "low", "close", "volume", "adj_close"}
 
-# Warn if a ticker is missing more than this fraction of expected trading days.
-# US markets are open ~252 days/year; we use a generous 20% threshold since
-# yfinance occasionally has gaps for less-liquid names.
+# US markets ~252 days/year; warn if a ticker is missing more than 20% of that
 MAX_MISSING_PCT = 0.20
 
 
 def validate(df: pd.DataFrame, start: date, end: date) -> pd.DataFrame:
-    """
-    Clean and validate a price DataFrame. Returns the cleaned DataFrame.
-    Raises ValueError for hard failures; logs warnings for soft issues.
-    """
+    """Clean and validate a price DataFrame. Raises on hard failures, warns on soft ones."""
     _check_required_columns(df)
 
     df = _drop_duplicates(df)
@@ -46,10 +25,6 @@ def validate(df: pd.DataFrame, start: date, end: date) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 def _check_required_columns(df: pd.DataFrame) -> None:
     missing = REQUIRED_COLUMNS - set(df.columns)
@@ -82,11 +57,7 @@ def _drop_invalid_prices(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _check_date_coverage(df: pd.DataFrame, start: date, end: date) -> None:
-    """
-    Estimate expected trading days in the window (approximation: ~252/year).
-    Flag any ticker that is missing more than MAX_MISSING_PCT of that count.
-    """
-    # Count calendar days and scale to approximate trading days.
+    # ~252 trading days per year — rough approximation to flag sparse tickers
     calendar_days = (end - start).days + 1
     approx_trading_days = int(calendar_days * 252 / 365)
 
